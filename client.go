@@ -13,6 +13,8 @@ import (
 const (
 	ENDPOINT        = "https://app.datadoghq.com/api"
 	SERIES_ENDPIONT = "/v1/series"
+	EVENT_ENDPOINT  = "/v1/events"
+	CONTENT_TYPE    = "application/json"
 )
 
 type Client struct {
@@ -32,6 +34,14 @@ type Series struct {
 	Tags   []string         `json:"tags,omitempty"`
 }
 
+type Event struct {
+	Title     string   `json:"title"`
+	Text      string   `json:"text"`
+	Priority  string   `json:"priority"`
+	Tags      []string `json:"tags"`
+	AlertType string   `json:"alert_type"`
+}
+
 // Create a new Datadog client. In EC2, datadog expects the hostname to be the
 // instance ID rather than `gethostname(2)`. However, that value can be obtained
 // with `os.Hostname()`.
@@ -48,6 +58,29 @@ func (c *Client) SeriesUrl() string {
 	return ENDPOINT + SERIES_ENDPIONT + "?api_key=" + c.ApiKey
 }
 
+// Gets an authenticate URL to POST events.
+func (c *Client) EventUrl() string {
+	return ENDPOINT + EVENT_ENDPOINT + "?api_key=" + c.ApiKey
+}
+
+func (c *Client) PostEvent(event *Event) (err error) {
+	bs, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+
+	resp, err := http.Post(c.EventUrl(), CONTENT_TYPE, bytes.NewBuffer(bs))
+	if err != nil {
+		return err
+	}
+
+	defer resp.Body.Close()
+	if !(resp.StatusCode == 200 || resp.StatusCode == 202) {
+		return fmt.Errorf("Bad Datadog response: '%s'", resp.Status)
+	}
+	return
+}
+
 // Posts an array of series data to the Datadog API. The API expects an object,
 // not an array, so it will be wrapped in a `seriesMessage` with a single
 // `series` field.
@@ -56,7 +89,7 @@ func (c *Client) PostSeries(series []*Series) (err error) {
 	if err != nil {
 		return err
 	}
-	resp, err := http.Post(c.SeriesUrl(), "application/json", body)
+	resp, err := http.Post(c.SeriesUrl(), CONTENT_TYPE, body)
 	if err != nil {
 		return err
 	}
