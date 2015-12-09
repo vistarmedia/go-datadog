@@ -46,3 +46,11 @@ func (s *ClientSuite) TestSingleSeriesReader(c *C) {
 	c.Check(strings.Index(body, `"host":"hostname"`), Not(Equals), -1)
 	c.Check(strings.Index(body, `"tags":["one","two","three"]`), Not(Equals), -1)
 }
+
+
+func (s *ClientSuite) TestEventsEndpoint(c *C) {
+	client.ApiKey = "secret"
+	c.Check(client.EventUrl(), Equals,
+		"https://app.datadoghq.com/api/v1/events?api_key=secret")
+}
+
