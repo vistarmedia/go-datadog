@@ -13,6 +13,7 @@ import (
 type MetricsReporter struct {
 	client   *Client
 	registry metrics.Registry
+	tags []string
 }
 
 // Expect the tags in the pattern
@@ -23,10 +24,12 @@ var tagPattern = regexp.MustCompile("([\\w\\.]+)\\[([\\w\\W]+)\\]")
 // `metrics.DefaultRegistry` will suffice for the required `metrics.Registry`.
 // The recreated `MetricsReporter` will not be started. Invoke `go r.Start(..)` with
 // a `time.Duration` to enable reporting.
-func Reporter(c *Client, r metrics.Registry) *MetricsReporter {
+func Reporter(c *Client, r metrics.Registry, tags []string) *MetricsReporter {
+
 	return &MetricsReporter{
 		client:   c,
 		registry: r,
+		tags: tags,
 	}
 }
 
@@ -86,7 +89,7 @@ func (mr *MetricsReporter) series(t int64, name string, i interface{}) []*Series
 
 func (mr *MetricsReporter) counterSeries(t int64, id string,
 	counter metrics.Counter) []*Series {
-	name, tags := splitNameAndTags(id)
+	name, tags := mr.splitNameAndTags(id)
 	counter.Inc(0)
 	return []*Series{
 		mr.counterI(name+".count", t, counter.Count(), tags),
@@ -95,7 +98,7 @@ func (mr *MetricsReporter) counterSeries(t int64, id string,
 
 func (mr *MetricsReporter) gaugeSeries(t int64, id string,
 	gauge metrics.Gauge) []*Series {
-	name, tags := splitNameAndTags(id)
+	name, tags := mr.splitNameAndTags(id)
 	return []*Series{
 		mr.gaugeI(name+".value", t, gauge.Value(), tags),
 	}
@@ -104,7 +107,7 @@ func (mr *MetricsReporter) gaugeSeries(t int64, id string,
 func (mr *MetricsReporter) histogramSeries(t int64, id string,
 	h metrics.Histogram) []*Series {
 	ps := h.Percentiles([]float64{0.5, 0.75, 0.95, 0.99, 0.999})
-	name, tags := splitNameAndTags(id)
+	name, tags := mr.splitNameAndTags(id)
 
 	return []*Series{
 		mr.counterI(name+".count", t, h.Count(), tags),
@@ -122,7 +125,7 @@ func (mr *MetricsReporter) histogramSeries(t int64, id string,
 
 func (mr *MetricsReporter) meterSeries(t int64, id string,
 	m metrics.Meter) []*Series {
-	name, tags := splitNameAndTags(id)
+	name, tags := mr.splitNameAndTags(id)
 	m.Mark(0)
 	return []*Series{
 		mr.counterI(name+".count", t, m.Count(), tags),
@@ -136,7 +139,7 @@ func (mr *MetricsReporter) meterSeries(t int64, id string,
 func (mr *MetricsReporter) timerSeries(t int64, id string,
 	m metrics.Timer) []*Series {
 	ps := m.Percentiles([]float64{0.5, 0.75, 0.95, 0.99, 0.999})
-	name, tags := splitNameAndTags(id)
+	name, tags := mr.splitNameAndTags(id)
 
 	return []*Series{
 		mr.counterI(name+".count", t, m.Count(), tags),
@@ -207,9 +210,9 @@ func (mr *MetricsReporter) seriesI(
 	}
 }
 
-func splitNameAndTags(metric string) (string, []string) {
+func (mr *MetricsReporter) splitNameAndTags(metric string) (string, []string) {
 	if res := tagPattern.FindStringSubmatch(metric); len(res) == 3 {
-		return res[1], strings.Split(res[2], ",")
+		return res[1], append(strings.Split(res[2], ","), mr.tags...)
 	}
-	return metric, make([]string, 0)
+	return metric, mr.tags
 }

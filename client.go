@@ -114,12 +114,12 @@ func (c *Client) seriesReader(series []*Series) (io.Reader, error) {
 
 // Create a `MetricsReporter` for the given metrics reporter. The returned
 // reporter will not be started.
-func (c *Client) Reporter(reg metrics.Registry) *MetricsReporter {
-	return Reporter(c, reg)
+func (c *Client) Reporter(reg metrics.Registry, tags []string) *MetricsReporter {
+	return Reporter(c, reg, tags)
 }
 
 // Create a `MetricsReporter` configured to use metric's default registry. This
 // reporter will not be started.
 func (c *Client) DefaultReporter() *MetricsReporter {
-	return Reporter(c, metrics.DefaultRegistry)
+	return Reporter(c, metrics.DefaultRegistry, nil)
 }
