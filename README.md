@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/eSailors/go-datadog.svg?branch=master)](https://travis-ci.org/eSailors/go-datadog)
 # Go Datadog
 Simple [Go](http://golang.org/) interface to the [Datadog
 API](http://docs.datadoghq.com/api/).
