@@ -5,10 +5,15 @@ import (
 	"errors"
 )
 
-func NewMetricName(prefix string, name string, tags string) (string, error) {
+func NewCheckedMetricName(prefix string, name string, tags string) (string, error) {
 	if len(name) == 0 {
 		return "", errors.New("Metric name cannot be empty.")
 	}
+
+	return NewMetricName(prefix, name, tags), nil
+}
+
+func NewMetricName(prefix string, name string, tags string) string {
 	var buffer bytes.Buffer
 	if len(prefix) > 0 {
 		buffer.WriteString(prefix)
@@ -20,5 +25,5 @@ func NewMetricName(prefix string, name string, tags string) (string, error) {
 		buffer.WriteString(tags)
 		buffer.WriteString("]")
 	}
-	return buffer.String(), nil
+	return buffer.String()
 }
