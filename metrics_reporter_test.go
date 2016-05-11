@@ -22,7 +22,7 @@ func (s *ReporterSuite) SetUpTest(c *C) {
 	client = &Client{
 		Host: "My Host",
 	}
-	reporter = &MetricsReporter{client, registry}
+	reporter = &MetricsReporter{client: client, registry: registry}
 	t = time.Now()
 }
 

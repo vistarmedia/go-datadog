@@ -13,7 +13,7 @@ import (
 type MetricsReporter struct {
 	client   *Client
 	registry metrics.Registry
-	tags []string
+	tags     []string
 }
 
 // Expect the tags in the pattern
@@ -29,7 +29,7 @@ func Reporter(c *Client, r metrics.Registry, tags []string) *MetricsReporter {
 	return &MetricsReporter{
 		client:   c,
 		registry: r,
-		tags: tags,
+		tags:     tags,
 	}
 }
 
