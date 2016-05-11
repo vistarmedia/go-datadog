@@ -11,7 +11,7 @@ along the lines of the following:
 
 ```go
 import(
-  "github.com/vistarmedia/datadog"
+  "github.com/esailors/go-datadog"
   "os"
   "time"
 )
