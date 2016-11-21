@@ -169,3 +169,21 @@ func (_ *ReporterSuite) TestTaggedCounterSeries(c *C) {
 	c.Check(s.Tags[0], Equals, "food:bagels")
 	c.Check(s.Tags[1], Equals, "drink:coffee")
 }
+
+func (_ *ReporterSuite) TestClientWithEnv(c *C) {
+	client = &Client{
+		Host:        "My Host",
+		Environment: "staging",
+	}
+	reporter = &MetricsReporter{client, registry}
+
+	counter := metrics.NewCounter()
+	counter.Inc(666)
+
+	registry.Register("my.counter", counter)
+
+	series := reporter.Series()
+	s := series[0]
+	c.Check(s.Metric, Equals, "my.counter.count")
+	c.Check(s.Tags[0], Equals, "environment:staging")
+}

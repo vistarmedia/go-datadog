@@ -26,6 +26,6 @@ And to use a custom registry, it would simply read:
 ```go
 host _ := os.Hostname()
 dog := datadog.New(host, "dog-api-key")
-reporter := getMyCustomRegistry()
+registry := getMyCustomRegistry()
 go dog.Reporter(registry).Start(60 * time.Second)
 ```
