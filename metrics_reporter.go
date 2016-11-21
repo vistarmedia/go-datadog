@@ -187,6 +187,9 @@ func (mr *MetricsReporter) gaugeI(
 
 func (mr *MetricsReporter) seriesF(
 	metric, typ string, t int64, v float64, tags []string) *Series {
+	if mr.client.Environment != "" {
+		tags = append(tags, "environment:"+mr.client.Environment)
+	}
 	return &Series{
 		Metric: metric,
 		Points: [][2]interface{}{[2]interface{}{t, v}},
@@ -198,6 +201,9 @@ func (mr *MetricsReporter) seriesF(
 
 func (mr *MetricsReporter) seriesI(
 	metric, typ string, t int64, v int64, tags []string) *Series {
+	if mr.client.Environment != "" {
+		tags = append(tags, "environment:"+mr.client.Environment)
+	}
 	return &Series{
 		Metric: metric,
 		Points: [][2]interface{}{[2]interface{}{t, v}},

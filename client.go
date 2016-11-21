@@ -18,8 +18,9 @@ const (
 )
 
 type Client struct {
-	Host   string
-	ApiKey string
+	Host        string
+	ApiKey      string
+	Environment string
 }
 
 type seriesMessage struct {
@@ -49,6 +50,14 @@ func New(host, apiKey string) *Client {
 	return &Client{
 		Host:   host,
 		ApiKey: apiKey,
+	}
+}
+
+func NewWithEnv(host, apiKey, environment string) *Client {
+	return &Client{
+		Host:        host,
+		ApiKey:      apiKey,
+		Environment: environment,
 	}
 }
 
