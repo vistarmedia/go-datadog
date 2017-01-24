@@ -5,9 +5,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/rcrowley/go-metrics"
 	"io"
 	"net/http"
+
+	"github.com/rcrowley/go-metrics"
 )
 
 const (
@@ -95,7 +96,7 @@ func (c *Client) PostSeries(series []*Series) (err error) {
 	}
 	defer resp.Body.Close()
 	if !(resp.StatusCode == 200 || resp.StatusCode == 202) {
-		return fmt.Errorf("Bad Datadog response: '%s'", resp.Status)
+		return fmt.Errorf("Bad Datadog response: '%+v'", resp)
 	}
 	return
 }
