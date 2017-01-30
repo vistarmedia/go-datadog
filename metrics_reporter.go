@@ -52,7 +52,7 @@ func (mr *MetricsReporter) Start(d time.Duration) {
 // POST a single series report to the Datadog API. A 200 or 202 is expected for
 // this to complete without error.
 func (mr *MetricsReporter) Report() error {
-	return mr.client.PostSeries(mr.Series())
+	return mr.client.PostSeries(mr.Series(), mr.registry)
 }
 
 // For each metric assocaited with the current Registry, convert it to a
@@ -62,8 +62,11 @@ func (mr *MetricsReporter) Series() []*Series {
 	now := time.Now().Unix()
 	series := make([]*Series, 0)
 	mr.registry.Each(func(name string, metric interface{}) {
-		series = append(series, mr.series(now, name, metric)...)
+		s := mr.series(now, name, metric)
+		series = append(series, s...)
 	})
+
+	metrics.GetOrRegisterGauge("metrics.series.count", mr.registry).Update(int64(len(series)))
 	return series
 }
 
@@ -74,21 +77,20 @@ func (mr *MetricsReporter) series(t int64, name string, i interface{}) []*Series
 	case metrics.Counter:
 		return mr.counterSeries(t, name, m)
 	case metrics.Gauge:
-		return mr.gaugeSeries(t, name, m)
+		return mr.gaugeSeries(t, name, m.Snapshot())
 	case metrics.Healthcheck:
-		// TODO: Not implemented
+	// TODO: Not implemented
 	case metrics.Histogram:
-		return mr.histogramSeries(t, name, m)
+		return mr.histogramSeries(t, name, m.Snapshot())
 	case metrics.Meter:
-		return mr.meterSeries(t, name, m)
+		return mr.meterSeries(t, name, m.Snapshot())
 	case metrics.Timer:
-		return mr.timerSeries(t, name, m)
+		return mr.timerSeries(t, name, m.Snapshot())
 	}
 	return nil
 }
 
-func (mr *MetricsReporter) counterSeries(t int64, id string,
-	counter metrics.Counter) []*Series {
+func (mr *MetricsReporter) counterSeries(t int64, id string, counter metrics.Counter) []*Series {
 	name, tags := mr.splitNameAndTags(id)
 	counter.Inc(0)
 	return []*Series{
@@ -96,16 +98,14 @@ func (mr *MetricsReporter) counterSeries(t int64, id string,
 	}
 }
 
-func (mr *MetricsReporter) gaugeSeries(t int64, id string,
-	gauge metrics.Gauge) []*Series {
+func (mr *MetricsReporter) gaugeSeries(t int64, id string, gauge metrics.Gauge) []*Series {
 	name, tags := mr.splitNameAndTags(id)
 	return []*Series{
 		mr.gaugeI(name+".value", t, gauge.Value(), tags),
 	}
 }
 
-func (mr *MetricsReporter) histogramSeries(t int64, id string,
-	h metrics.Histogram) []*Series {
+func (mr *MetricsReporter) histogramSeries(t int64, id string, h metrics.Histogram) []*Series {
 	ps := h.Percentiles([]float64{0.5, 0.75, 0.95, 0.99, 0.999})
 	name, tags := mr.splitNameAndTags(id)
 
@@ -123,10 +123,8 @@ func (mr *MetricsReporter) histogramSeries(t int64, id string,
 	}
 }
 
-func (mr *MetricsReporter) meterSeries(t int64, id string,
-	m metrics.Meter) []*Series {
+func (mr *MetricsReporter) meterSeries(t int64, id string, m metrics.Meter) []*Series {
 	name, tags := mr.splitNameAndTags(id)
-	m.Mark(0)
 	return []*Series{
 		mr.counterI(name+".count", t, m.Count(), tags),
 		mr.counterF(name+".rate.1min", t, m.Rate1(), tags),
@@ -136,8 +134,7 @@ func (mr *MetricsReporter) meterSeries(t int64, id string,
 	}
 }
 
-func (mr *MetricsReporter) timerSeries(t int64, id string,
-	m metrics.Timer) []*Series {
+func (mr *MetricsReporter) timerSeries(t int64, id string, m metrics.Timer) []*Series {
 	ps := m.Percentiles([]float64{0.5, 0.75, 0.95, 0.99, 0.999})
 	name, tags := mr.splitNameAndTags(id)
 
@@ -173,23 +170,19 @@ func millisF(nanos float64) float64 {
 // 	return int64(nanos) / int64(time.Millisecond)
 // }
 
-func (mr *MetricsReporter) counterF(
-	metric string, t int64, v float64, tags []string) *Series {
+func (mr *MetricsReporter) counterF(metric string, t int64, v float64, tags []string) *Series {
 	return mr.seriesF(metric, "counter", t, v, tags)
 }
 
-func (mr *MetricsReporter) counterI(
-	metric string, t int64, v int64, tags []string) *Series {
+func (mr *MetricsReporter) counterI(metric string, t int64, v int64, tags []string) *Series {
 	return mr.seriesI(metric, "counter", t, v, tags)
 }
 
-func (mr *MetricsReporter) gaugeI(
-	metric string, t int64, v int64, tags []string) *Series {
+func (mr *MetricsReporter) gaugeI(metric string, t int64, v int64, tags []string) *Series {
 	return mr.seriesI(metric, "gauge", t, v, tags)
 }
 
-func (mr *MetricsReporter) seriesF(
-	metric, typ string, t int64, v float64, tags []string) *Series {
+func (mr *MetricsReporter) seriesF(metric, typ string, t int64, v float64, tags []string) *Series {
 	return &Series{
 		Metric: metric,
 		Points: [][2]interface{}{[2]interface{}{t, v}},
@@ -199,8 +192,7 @@ func (mr *MetricsReporter) seriesF(
 	}
 }
 
-func (mr *MetricsReporter) seriesI(
-	metric, typ string, t int64, v int64, tags []string) *Series {
+func (mr *MetricsReporter) seriesI(metric, typ string, t int64, v int64, tags []string) *Series {
 	return &Series{
 		Metric: metric,
 		Points: [][2]interface{}{[2]interface{}{t, v}},
