@@ -1,8 +1,8 @@
 language: go
 
 go:
-    - 1.5
-    - 1.6
+    - 1.7
+    - 1.8
 
 script: go get github.com/go-check/check && go get github.com/rcrowley/go-metrics && go test -v -tags .
 
