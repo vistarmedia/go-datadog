@@ -1,6 +1,6 @@
 // Datadog reporter for the [go-metrics](https://github.com/rcrowley/go-metrics)
 // library.
-package datadog
+package datadog 
 
 import (
 	"github.com/rcrowley/go-metrics"

@@ -2,7 +2,7 @@ package datadog
 
 import (
 	"github.com/rcrowley/go-metrics"
-	. "launchpad.net/gocheck"
+	. "github.com/go-check/check"
 	"time"
 )
 

@@ -1,5 +1,5 @@
 // Simple client to the [Datadog API](http://docs.datadoghq.com/api/).
-package datadog
+package datadog 
 
 import (
 	"encoding/json"
