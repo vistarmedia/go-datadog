@@ -4,6 +4,8 @@ go:
     - 1.5
     - 1.6
 
-script: go get github.com/rcrowley/go-metrics && go test -v -tags .
+script: go get github.com/go-check/check && \
+        go get github.com/rcrowley/go-metrics && \
+        go test -v -tags .
 
 sudo: false
