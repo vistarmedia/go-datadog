@@ -38,12 +38,21 @@ func (s *ReporterSuite) TestSimpleReport(c *C) {
 
 	series := reporter.Series()
 	c.Check(series, HasLen, 6)
-	c.Check(series[0].Metric, Equals, "my.counter.count")
-	c.Check(series[1].Metric, Equals, "my.meter.count")
-	c.Check(series[2].Metric, Equals, "my.meter.rate.1min")
-	c.Check(series[3].Metric, Equals, "my.meter.rate.5min")
-	c.Check(series[4].Metric, Equals, "my.meter.rate.15min")
-	c.Check(series[5].Metric, Equals, "my.meter.rate.mean")
+	c.Check(contains(series, "my.counter.count"), Equals, true)
+	c.Check(contains(series, "my.meter.count"), Equals, true)
+	c.Check(contains(series, "my.meter.rate.1min"), Equals, true)
+	c.Check(contains(series, "my.meter.rate.5min"), Equals, true)
+	c.Check(contains(series, "my.meter.rate.15min"), Equals, true)
+	c.Check(contains(series, "my.meter.rate.mean"), Equals, true)
+}
+
+func contains(series []*Series, metricName string) bool {
+	for _, m := range series {
+			if m.Metric == metricName {
+				return true
+			}
+	}
+	return false
 }
 
 func (_ *ReporterSuite) TestCounterSeries(c *C) {
