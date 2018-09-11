@@ -1,6 +1,6 @@
 // Datadog reporter for the [go-metrics](https://github.com/rcrowley/go-metrics)
 // library.
-package datadog 
+package datadog
 
 import (
 	"github.com/rcrowley/go-metrics"
@@ -25,7 +25,6 @@ var tagPattern = regexp.MustCompile("([\\w\\.]+)\\[([\\w\\W]+)\\]")
 // The recreated `MetricsReporter` will not be started. Invoke `go r.Start(..)` with
 // a `time.Duration` to enable reporting.
 func Reporter(c *Client, r metrics.Registry, tags []string) *MetricsReporter {
-
 	return &MetricsReporter{
 		client:   c,
 		registry: r,
@@ -58,9 +57,9 @@ func (mr *MetricsReporter) Report() error {
 // For each metric assocaited with the current Registry, convert it to a
 // `Series` message, and return them all as a single array. The series messages
 // will have the current hostname of the `Client`.
-func (mr *MetricsReporter) Series() []*Series {
+func (mr *MetricsReporter) Series() []Series {
 	now := time.Now().Unix()
-	series := make([]*Series, 0)
+	series := make([]Series, 0)
 	mr.registry.Each(func(name string, metric interface{}) {
 		s := mr.series(now, name, metric)
 		series = append(series, s...)
@@ -72,12 +71,14 @@ func (mr *MetricsReporter) Series() []*Series {
 
 // Switch through the known types of meters delegating out to specific methods.
 // If an unknown metric is encountered, this will return nil.
-func (mr *MetricsReporter) series(t int64, name string, i interface{}) []*Series {
+func (mr *MetricsReporter) series(t int64, name string, i interface{}) []Series {
 	switch m := i.(type) {
 	case metrics.Counter:
 		return mr.counterSeries(t, name, m)
 	case metrics.Gauge:
 		return mr.gaugeSeries(t, name, m.Snapshot())
+	case metrics.GaugeFloat64:
+		return mr.gauge64Series(t, name, m.Snapshot())
 	case metrics.Healthcheck:
 	// TODO: Not implemented
 	case metrics.Histogram:
@@ -90,26 +91,33 @@ func (mr *MetricsReporter) series(t int64, name string, i interface{}) []*Series
 	return nil
 }
 
-func (mr *MetricsReporter) counterSeries(t int64, id string, counter metrics.Counter) []*Series {
+func (mr *MetricsReporter) counterSeries(t int64, id string, counter metrics.Counter) []Series {
 	name, tags := mr.splitNameAndTags(id)
 	counter.Inc(0)
-	return []*Series{
+	return []Series{
 		mr.counterI(name+".count", t, counter.Count(), tags),
 	}
 }
 
-func (mr *MetricsReporter) gaugeSeries(t int64, id string, gauge metrics.Gauge) []*Series {
+func (mr *MetricsReporter) gaugeSeries(t int64, id string, gauge metrics.Gauge) []Series {
 	name, tags := mr.splitNameAndTags(id)
-	return []*Series{
+	return []Series{
 		mr.gaugeI(name+".value", t, gauge.Value(), tags),
 	}
 }
 
-func (mr *MetricsReporter) histogramSeries(t int64, id string, h metrics.Histogram) []*Series {
+func (mr *MetricsReporter) gauge64Series(t int64, id string, gauge metrics.GaugeFloat64) []Series {
+	name, tags := mr.splitNameAndTags(id)
+	return []Series{
+		mr.gaugeF(name+".value", t, gauge.Value(), tags),
+	}
+}
+
+func (mr *MetricsReporter) histogramSeries(t int64, id string, h metrics.Histogram) []Series {
 	ps := h.Percentiles([]float64{0.5, 0.75, 0.95, 0.99, 0.999})
 	name, tags := mr.splitNameAndTags(id)
 
-	return []*Series{
+	return []Series{
 		mr.counterI(name+".count", t, h.Count(), tags),
 		mr.counterI(name+".min", t, h.Min(), tags),
 		mr.counterI(name+".max", t, h.Max(), tags),
@@ -123,9 +131,9 @@ func (mr *MetricsReporter) histogramSeries(t int64, id string, h metrics.Histogr
 	}
 }
 
-func (mr *MetricsReporter) meterSeries(t int64, id string, m metrics.Meter) []*Series {
+func (mr *MetricsReporter) meterSeries(t int64, id string, m metrics.Meter) []Series {
 	name, tags := mr.splitNameAndTags(id)
-	return []*Series{
+	return []Series{
 		mr.counterI(name+".count", t, m.Count(), tags),
 		mr.counterF(name+".rate.1min", t, m.Rate1(), tags),
 		mr.counterF(name+".rate.5min", t, m.Rate5(), tags),
@@ -134,11 +142,11 @@ func (mr *MetricsReporter) meterSeries(t int64, id string, m metrics.Meter) []*S
 	}
 }
 
-func (mr *MetricsReporter) timerSeries(t int64, id string, m metrics.Timer) []*Series {
+func (mr *MetricsReporter) timerSeries(t int64, id string, m metrics.Timer) []Series {
 	ps := m.Percentiles([]float64{0.5, 0.75, 0.95, 0.99, 0.999})
 	name, tags := mr.splitNameAndTags(id)
 
-	return []*Series{
+	return []Series{
 		mr.counterI(name+".count", t, m.Count(), tags),
 		mr.counterF(name+".min", t, millisI(m.Min()), tags),
 		mr.counterF(name+".max", t, millisI(m.Max()), tags),
@@ -166,36 +174,36 @@ func millisF(nanos float64) float64 {
 	return nanos / float64(time.Millisecond)
 }
 
-// func floatMs(nanos float64) int64 {
-// 	return int64(nanos) / int64(time.Millisecond)
-// }
-
-func (mr *MetricsReporter) counterF(metric string, t int64, v float64, tags []string) *Series {
+func (mr *MetricsReporter) counterF(metric string, t int64, v float64, tags []string) Series {
 	return mr.seriesF(metric, "counter", t, v, tags)
 }
 
-func (mr *MetricsReporter) counterI(metric string, t int64, v int64, tags []string) *Series {
+func (mr *MetricsReporter) counterI(metric string, t int64, v int64, tags []string) Series {
 	return mr.seriesI(metric, "counter", t, v, tags)
 }
 
-func (mr *MetricsReporter) gaugeI(metric string, t int64, v int64, tags []string) *Series {
+func (mr *MetricsReporter) gaugeI(metric string, t int64, v int64, tags []string) Series {
 	return mr.seriesI(metric, "gauge", t, v, tags)
 }
 
-func (mr *MetricsReporter) seriesF(metric, typ string, t int64, v float64, tags []string) *Series {
-	return &Series{
+func (mr *MetricsReporter) gaugeF(metric string, t int64, v float64, tags []string) Series {
+	return mr.seriesF(metric, "gauge", t, v, tags)
+}
+
+func (mr *MetricsReporter) seriesF(metric, typ string, t int64, v float64, tags []string) Series {
+	return Series{
 		Metric: metric,
-		Points: [][2]interface{}{[2]interface{}{t, v}},
+		Points: [][2]interface{}{{t, v}},
 		Type:   typ,
 		Host:   mr.client.Host,
 		Tags:   tags,
 	}
 }
 
-func (mr *MetricsReporter) seriesI(metric, typ string, t int64, v int64, tags []string) *Series {
-	return &Series{
+func (mr *MetricsReporter) seriesI(metric, typ string, t int64, v int64, tags []string) Series {
+	return Series{
 		Metric: metric,
-		Points: [][2]interface{}{[2]interface{}{t, v}},
+		Points: [][2]interface{}{{t, v}},
 		Type:   typ,
 		Host:   mr.client.Host,
 		Tags:   tags,

@@ -1,8 +1,8 @@
 package datadog
 
 import (
-	"github.com/rcrowley/go-metrics"
 	. "github.com/go-check/check"
+	"github.com/rcrowley/go-metrics"
 	"time"
 )
 
@@ -46,11 +46,11 @@ func (s *ReporterSuite) TestSimpleReport(c *C) {
 	c.Check(contains(series, "my.meter.rate.mean"), Equals, true)
 }
 
-func contains(series []*Series, metricName string) bool {
+func contains(series []Series, metricName string) bool {
 	for _, m := range series {
-			if m.Metric == metricName {
-				return true
-			}
+		if m.Metric == metricName {
+			return true
+		}
 	}
 	return false
 }

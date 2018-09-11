@@ -1,8 +1,8 @@
-package datadog 
+package datadog
 
 import (
-	"bytes"
 	"errors"
+	"strings"
 )
 
 func NewCheckedMetricName(prefix string, name string, tags string) (string, error) {
@@ -14,7 +14,7 @@ func NewCheckedMetricName(prefix string, name string, tags string) (string, erro
 }
 
 func NewMetricName(prefix string, name string, tags string) string {
-	var buffer bytes.Buffer
+	var buffer strings.Builder
 	if len(prefix) > 0 {
 		buffer.WriteString(prefix)
 		buffer.WriteString(".")

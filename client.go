@@ -1,10 +1,11 @@
 // Simple client to the [Datadog API](http://docs.datadoghq.com/api/).
-package datadog 
+package datadog
 
 import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/http/httputil"
 
 	"bytes"
 	"github.com/rcrowley/go-metrics"
@@ -83,7 +84,7 @@ const messageChunkSize = 2 * 1024 * 1024
 // If the slice contains too many series, the message will be split into
 // multiple chunks of around 2mb each.
 //
-func (c *Client) PostSeries(series []*Series, reg metrics.Registry) error {
+func (c *Client) PostSeries(series []Series, reg metrics.Registry) error {
 	var approxTotalSize int
 	var encodedSeries []json.RawMessage
 
@@ -149,8 +150,9 @@ func (c *Client) doRequest(url string, body []byte) (err error) {
 	defer io.Copy(ioutil.Discard, resp.Body)
 	defer resp.Body.Close()
 
-	if !(resp.StatusCode == 200 || resp.StatusCode == 202) {
-		return fmt.Errorf("Bad Datadog response: '%+v'", resp)
+	if resp.StatusCode/100 != 200 {
+		dump, _ := httputil.DumpResponse(resp, true)
+		return fmt.Errorf("bad datadog response: \n%s", string(dump))
 	}
 
 	return nil
