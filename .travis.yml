@@ -1,9 +1,10 @@
 language: go
 
 go:
-    - 1.7
-    - 1.8
+    - 1.11
 
-script: go get github.com/go-check/check && go get github.com/rcrowley/go-metrics && go test -v -tags .
+script:
+  - go get github.com/go-check/check
+  - env GO111MODULE=on go test -v -tags .
 
 sudo: false
