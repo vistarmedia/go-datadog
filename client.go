@@ -150,7 +150,7 @@ func (c *Client) doRequest(url string, body []byte) (err error) {
 	defer io.Copy(ioutil.Discard, resp.Body)
 	defer resp.Body.Close()
 
-	if resp.StatusCode/100 != 200 {
+	if resp.StatusCode/100 != 2 {
 		dump, _ := httputil.DumpResponse(resp, true)
 		return fmt.Errorf("bad datadog response: \n%s", string(dump))
 	}
