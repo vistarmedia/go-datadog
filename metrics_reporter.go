@@ -54,12 +54,13 @@ func (mr *MetricsReporter) Report() error {
 	return mr.client.PostSeries(mr.Series(), mr.registry)
 }
 
-// For each metric assocaited with the current Registry, convert it to a
+// For each metric associated with the current Registry, convert it to a
 // `Series` message, and return them all as a single array. The series messages
 // will have the current hostname of the `Client`.
 func (mr *MetricsReporter) Series() []Series {
 	now := time.Now().Unix()
-	series := make([]Series, 0)
+
+	var series []Series
 	mr.registry.Each(func(name string, metric interface{}) {
 		s := mr.series(now, name, metric)
 		series = append(series, s...)

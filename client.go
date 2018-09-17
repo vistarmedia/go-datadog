@@ -157,9 +157,10 @@ func (c *Client) doRequest(url string, body []byte) (err error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode/100 != 2 {
-		dumpReq, _ := httputil.DumpRequest(req, true)
+		dumpReq, _ := httputil.DumpRequest(req, false)
 		dumpRes, _ := httputil.DumpResponse(resp, true)
-		return fmt.Errorf("bad datadog request and response:\n%s\n%s", string(dumpReq), string(dumpRes))
+		return fmt.Errorf("bad datadog request and response:\n%s\n%s\n\n%s",
+			string(dumpReq), string(body), string(dumpRes))
 	}
 
 	return nil
