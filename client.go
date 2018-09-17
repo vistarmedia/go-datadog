@@ -141,7 +141,13 @@ func (c *Client) DefaultReporter() *MetricsReporter {
 }
 
 func (c *Client) doRequest(url string, body []byte) (err error) {
-	resp, err := http.Post(c.SeriesUrl(), CONTENT_TYPE, bytes.NewReader(body))
+	req, err := http.NewRequest("POST", c.SeriesUrl(), bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("building request: %s", err)
+	}
+
+	// now execute the request
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
@@ -151,8 +157,9 @@ func (c *Client) doRequest(url string, body []byte) (err error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode/100 != 2 {
-		dump, _ := httputil.DumpResponse(resp, true)
-		return fmt.Errorf("bad datadog response: \n%s", string(dump))
+		dumpReq, _ := httputil.DumpRequest(req, true)
+		dumpRes, _ := httputil.DumpResponse(resp, true)
+		return fmt.Errorf("bad datadog request and response:\n%s\n%s", string(dumpReq), string(dumpRes))
 	}
 
 	return nil
