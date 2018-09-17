@@ -146,6 +146,9 @@ func (c *Client) doRequest(url string, body []byte) (err error) {
 		return fmt.Errorf("building request: %s", err)
 	}
 
+	req.ContentLength = int64(len(body))
+	req.Header.Set("Content-Type", "application/json")
+
 	// now execute the request
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
