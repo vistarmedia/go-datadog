@@ -1,0 +1,10 @@
+language: go
+
+go:
+    - 1.11
+
+script:
+  - go get github.com/go-check/check
+  - env GO111MODULE=on go test -v -tags .
+
+sudo: false

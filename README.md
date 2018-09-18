@@ -1,3 +1,4 @@
+[![Build Status](https://travis-ci.org/eSailors/go-datadog.svg?branch=master)](https://travis-ci.org/eSailors/go-datadog)
 # Go Datadog
 Simple [Go](http://golang.org/) interface to the [Datadog
 API](http://docs.datadoghq.com/api/).
@@ -11,7 +12,7 @@ along the lines of the following:
 
 ```go
 import(
-  "github.com/vistarmedia/datadog"
+  "github.com/esailors/go-datadog"
   "os"
   "time"
 )

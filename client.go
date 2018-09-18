@@ -2,12 +2,15 @@
 package datadog
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/http/httputil"
+
+	"bytes"
 	"github.com/rcrowley/go-metrics"
 	"io"
-	"net/http"
+	"io/ioutil"
 )
 
 const (
@@ -23,7 +26,7 @@ type Client struct {
 }
 
 type seriesMessage struct {
-	Series []*Series `json:"series,omitempty"`
+	Series []json.RawMessage `json:"series,omitempty"`
 }
 
 type Series struct {
@@ -64,62 +67,103 @@ func (c *Client) EventUrl() string {
 }
 
 func (c *Client) PostEvent(event *Event) (err error) {
-	bs, err := json.Marshal(event)
+	body, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
 
-	resp, err := http.Post(c.EventUrl(), CONTENT_TYPE, bytes.NewBuffer(bs))
-	if err != nil {
-		return err
-	}
-
-	defer resp.Body.Close()
-	if !(resp.StatusCode == 200 || resp.StatusCode == 202) {
-		return fmt.Errorf("Bad Datadog response: '%s'", resp.Status)
-	}
-	return
+	return c.doRequest(c.EventUrl(), body)
 }
+
+const messageChunkSize = 2 * 1024 * 1024
 
 // Posts an array of series data to the Datadog API. The API expects an object,
 // not an array, so it will be wrapped in a `seriesMessage` with a single
 // `series` field.
-func (c *Client) PostSeries(series []*Series) (err error) {
-	body, err := c.seriesReader(series)
-	if err != nil {
-		return err
+//
+// If the slice contains too many series, the message will be split into
+// multiple chunks of around 2mb each.
+//
+func (c *Client) PostSeries(series []Series, reg metrics.Registry) error {
+	var approxTotalSize int
+	var encodedSeries []json.RawMessage
+
+	for _, serie := range series {
+		// encode series to json
+		jsonSerie, err := json.Marshal(serie)
+		if err != nil {
+			return err
+		}
+
+		encoded := json.RawMessage(jsonSerie)
+
+		// count bytes of this message
+		approxTotalSize += len(encoded)
+		encodedSeries = append(encodedSeries, encoded)
+
+		if approxTotalSize > messageChunkSize {
+			if err := c.sendEncodedSeries(encodedSeries); err != nil {
+				return err
+			}
+
+			// reset and start to collect the next chunk
+			encodedSeries = encodedSeries[:0]
+			approxTotalSize = 0
+		}
 	}
-	resp, err := http.Post(c.SeriesUrl(), CONTENT_TYPE, body)
-	if err != nil {
-		return err
+
+	if len(encodedSeries) > 0 {
+		return c.sendEncodedSeries(encodedSeries)
 	}
-	defer resp.Body.Close()
-	if !(resp.StatusCode == 200 || resp.StatusCode == 202) {
-		return fmt.Errorf("Bad Datadog response: '%s'", resp.Status)
-	}
-	return
+
+	return nil
 }
 
-// Serializes an array of `Series` to JSON. The array will be wrapped in a
-// `seriesMessage`, changing the serialized type from an array to an object with
-// a single `series` field.
-func (c *Client) seriesReader(series []*Series) (io.Reader, error) {
-	msg := &seriesMessage{series}
-	bs, err := json.Marshal(msg)
+func (c *Client) sendEncodedSeries(series []json.RawMessage) error {
+	body, err := json.Marshal(seriesMessage{series})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return bytes.NewBuffer(bs), nil
+
+	return c.doRequest(c.SeriesUrl(), body)
 }
 
 // Create a `MetricsReporter` for the given metrics reporter. The returned
 // reporter will not be started.
-func (c *Client) Reporter(reg metrics.Registry) *MetricsReporter {
-	return Reporter(c, reg)
+func (c *Client) Reporter(reg metrics.Registry, tags []string) *MetricsReporter {
+	return Reporter(c, reg, tags)
 }
 
 // Create a `MetricsReporter` configured to use metric's default registry. This
 // reporter will not be started.
 func (c *Client) DefaultReporter() *MetricsReporter {
-	return Reporter(c, metrics.DefaultRegistry)
+	return Reporter(c, metrics.DefaultRegistry, nil)
+}
+
+func (c *Client) doRequest(url string, body []byte) (err error) {
+	req, err := http.NewRequest("POST", c.SeriesUrl(), bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("building request: %s", err)
+	}
+
+	req.ContentLength = int64(len(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	// now execute the request
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+
+	// for keep-alive we ensure that the response-body is read.
+	defer io.Copy(ioutil.Discard, resp.Body)
+	defer resp.Body.Close()
+
+	if resp.StatusCode/100 != 2 {
+		dumpReq, _ := httputil.DumpRequest(req, false)
+		dumpRes, _ := httputil.DumpResponse(resp, true)
+		return fmt.Errorf("bad datadog request and response:\n%s\n%s", string(dumpReq), string(dumpRes))
+	}
+
+	return nil
 }
